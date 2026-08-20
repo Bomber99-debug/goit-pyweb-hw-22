@@ -1,0 +1,8 @@
+.env
+.idea
+.git
+.idea
+.ruff_cache
+__pycache__/
+DB/
+cash/

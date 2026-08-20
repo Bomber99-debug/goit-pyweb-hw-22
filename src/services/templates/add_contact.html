@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>New Contact Added</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+	<tr>
+		<td align="center" style="padding: 30px 10px;">
+			
+			<table width="600"
+			       cellpadding="0"
+			       cellspacing="0"
+			       style="background-color: #ffffff; padding: 30px; border-radius: 8px;">
+				<tr>
+					<td>
+						<h2 style="margin-top: 0;">New Contact Added</h2>
+						<p>A new contact has been successfully added to your address book.</p>
+						<p><strong>Name:</strong> {{ username }}</p>
+						<p><strong>Email:</strong> {{ email }}</p>
+						{% for phone in phones %}
+						<p><strong>Phone:</strong> {{ phone }}</p>
+						{% endfor %}
+						<p style="margin-top: 30px;">You can now manage this contact in your account.</p>
+						<hr style="border: 0; border-top: 1px solid #dddddd; margin: 30px 0;">
+						<p style="font-size: 12px; color: #777777;">This is an automatic notification. Please do not reply to this email.</p>
+					</td>
+				</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+
+</body>
+</html>
