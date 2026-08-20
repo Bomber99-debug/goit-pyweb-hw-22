@@ -2,6 +2,5 @@ Database Models
 ===============
 
 .. automodule:: src.entity.models
-   :members:
-   :undoc-members:
+   :members: Contact, Phone, User
    :show-inheritance:

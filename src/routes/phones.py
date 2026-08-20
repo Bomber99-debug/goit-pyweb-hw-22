@@ -139,10 +139,10 @@ async def update_phone( phone_data: PhoneUpdateSchema,
 		raise HTTPException( status_code=status.HTTP_404_NOT_FOUND, detail="Phone not found", )
 
 	await redis_client.delete( f"current_user:{current_user.id}:phone_id:{phone_id}" )
-	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*" ]
-
-	async for key in redis_client.scan_iter( match=patterns ):
-		await redis_client.delete( key )
+	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*"]
+	for pattern in patterns:
+		async for key in redis_client.scan_iter( match=pattern, ):
+			await redis_client.delete( key, )
 
 	return phone
 
@@ -164,6 +164,7 @@ async def delete_phone( db: AsyncSession = Depends( get_db ),
 	await phones_repository.delete_phone( db=db, phone_id=phone_id, user=current_user )
 
 	await redis_client.delete( f"current_user:{current_user.id}:phone_id:{phone_id}" )
-	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*" ]
-	async for key in redis_client.scan_iter( match=patterns ):
-		await redis_client.delete( key )
+	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*"]
+	for pattern in patterns:
+		async for key in redis_client.scan_iter( match=pattern, ):
+			await redis_client.delete( key, )
