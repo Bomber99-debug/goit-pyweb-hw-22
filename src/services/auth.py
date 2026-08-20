@@ -20,6 +20,13 @@ class Auth:
 	ALGORITHM = config.ALGORITHM
 
 	def verify_password( self, plain_password, hashed_password ):
+		"""
+		Verify a plain-text password against its stored hash.
+
+		:param plain_password: Password received from the user.
+		:param hashed_password: Stored password hash.
+		:return: True when the password matches the hash.
+		"""
 		return self.pwd_context.verify( plain_password, hashed_password )
 
 	def get_password_hash( self, password: str ):
@@ -29,6 +36,13 @@ class Auth:
 
 	# define a function to generate a new access token
 	async def create_access_token( self, data: dict, expires_delta: Optional[ float ] = None, ):
+		"""
+		Create a signed JWT access token.
+
+		:param data: Payload to encode into the token.
+		:param expires_delta: Optional token lifetime in seconds.
+		:return: Encoded JWT access token.
+		"""
 		to_encode = data.copy()
 		if expires_delta:
 			expire = datetime.now( timezone.utc ) + timedelta( seconds=expires_delta )
