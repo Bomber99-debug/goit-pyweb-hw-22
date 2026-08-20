@@ -71,7 +71,7 @@ async def update_avatar( email, url: str, db: AsyncSession = Depends( get_db ) )
 	:param email: Email address of the user.
 	:param url: New avatar URL.
 	:param db: Asynchronous database session.
-	:return
+	:return: Updated user instance.
 	"""
 	user = await get_user_by_email( email, db )
 	user.avatar = url

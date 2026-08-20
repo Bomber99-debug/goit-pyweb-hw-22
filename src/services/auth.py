@@ -15,6 +15,7 @@ from src.repository import users as users_repository
 
 
 class Auth:
+	"""Надає методи аутентифікації, роботи з паролями та JWT-токенами."""
 	pwd_context = CryptContext( schemes=[ "bcrypt" ], deprecated="auto" )
 	SECRET_KEY = config.SECRET_KEY_JWT
 	ALGORITHM = config.ALGORITHM
