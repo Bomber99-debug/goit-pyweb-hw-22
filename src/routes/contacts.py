@@ -24,7 +24,18 @@ async def get_contacts( limit: int = Query( default=10, ge=10, le=100 ),
                         offset: int = Query( default=0, ge=0 ),
                         db: AsyncSession = Depends( get_db ),
                         current_user: User = Depends( auth_service.get_current_user ), ) -> Sequence[ Contact ]:
-	"""Повертає список контактів з урахуванням пагінації."""
+	"""
+	Return a paginated list of contacts for the authenticated user.
+
+	Results are cached in Redis for a short period.
+
+	:param limit: Maximum number of contacts to return.
+	:param offset: Number of contacts to skip.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Sequence of contacts.
+	:raises HTTPException: If contacts cannot be found.
+	"""
 	contact_list_cache = f"current_user:{current_user.id}:contacts:limit:{limit}:offset:{offset}"
 	contact_list = await redis_client.get( contact_list_cache )
 	if contact_list is None:
@@ -45,7 +56,17 @@ async def get_contacts( limit: int = Query( default=10, ge=10, le=100 ),
 async def get_contact_by_id( db: AsyncSession = Depends( get_db ),
                              contact_id: int = Path( ge=1 ),
                              current_user: User = Depends( auth_service.get_current_user ), ) -> Contact:
-	"""Повертає контакт за його ідентифікатором."""
+	"""
+	Return a contact by identifier for the authenticated user.
+
+	The contact may be loaded from Redis cache.
+
+	:param db: Asynchronous database session.
+	:param contact_id: Identifier of the requested contact.
+	:param current_user: Currently authenticated user.
+	:return: Requested contact.
+	:raises HTTPException: If the contact does not exist.
+	"""
 	contact_id_cache = f"current_user:{current_user.id}:contact_id:{contact_id}"
 	contact = await redis_client.get( contact_id_cache )
 	if contact is None:
@@ -69,7 +90,20 @@ async def create_contact( contact_data: ContactCreateSchema,
                           db: AsyncSession = Depends( get_db ),  # noqa: B008
                           current_user: User = Depends( auth_service.get_current_user ),  # noqa: B008
                           ) -> Contact:
-	"""Створює новий контакт."""
+	"""
+	Create a new contact for the authenticated user.
+
+	Phone numbers are checked for duplicates before creation. Related
+	contact caches are invalidated and an email notification is scheduled.
+
+	:param contact_data: Validated contact creation data.
+	:param bt: FastAPI background task manager.
+	:param request: Current HTTP request.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Newly created contact.
+	:raises HTTPException: If one of the phone numbers already exists.
+	"""
 
 	for phone_data in contact_data.phones:
 		phone = await phones_repository.get_phone_by_number( db=db, phone_number=phone_data.number,
@@ -100,7 +134,18 @@ async def update_contact( contact_data: ContactUpdateSchema,
                           db: AsyncSession = Depends( get_db ),  # noqa: B008
                           current_user: User = Depends( auth_service.get_current_user ),  # noqa: B008
                           ) -> Contact:
-	"""Оновлює контакт за його ідентифікатором."""
+	"""
+	Update an existing contact for the authenticated user.
+
+	Relevant Redis cache entries are invalidated after the update.
+
+	:param contact_data: Validated contact update data.
+	:param contact_id: Identifier of the contact to update.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Updated contact.
+	:raises HTTPException: If the contact does not exist.
+	"""
 
 	contact = await contact_repository.update_contact( db=db,
 	                                                   contact_data=contact_data,
@@ -124,7 +169,16 @@ async def update_contact( contact_data: ContactUpdateSchema,
 async def delete_contact( db: AsyncSession = Depends( get_db ),
                           contact_id: int = Path( ge=1 ),
                           current_user: User = Depends( auth_service.get_current_user ), ) -> None:
-	"""Видаляє контакт за його ідентифікатором."""
+	"""
+	Delete a contact belonging to the authenticated user.
+
+	Related Redis cache entries are invalidated after deletion.
+
+	:param db: Asynchronous database session.
+	:param contact_id: Identifier of the contact to delete.
+	:param current_user: Currently authenticated user.
+	:return: None.
+	"""
 	await contact_repository.delete_contact( db=db, contact_id=contact_id, user=current_user, )
 
 	await redis_client.delete( f"current_user:{current_user.id}:contact_id:{contact_id}" )

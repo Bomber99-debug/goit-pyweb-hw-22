@@ -43,7 +43,15 @@
 <div class="viewcode-block" id="get_phones">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.get_phones">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_phones</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">skip</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span> <span class="n">Phone</span> <span class="p">]:</span>
-<span class="w">	</span><span class="sd">"""Повертає список телефонних номерів з урахуванням пагінації."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return a paginated list of phone numbers owned by the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the phone numbers.</span>
+<span class="sd">	:param skip: Number of records to skip.</span>
+<span class="sd">	:param limit: Maximum number of records to return.</span>
+<span class="sd">	:return: Sequence of phone numbers belonging to the user.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Phone</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span> <span class="n">skip</span> <span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span> <span class="n">limit</span> <span class="p">)</span>
 
@@ -56,7 +64,14 @@
 <div class="viewcode-block" id="get_phone_by_id">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.get_phone_by_id">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_phone_by_id</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">phone_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Phone</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Повертає телефонний номер за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return a phone number by its identifier.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the phone number.</span>
+<span class="sd">	:param phone_id: Identifier of the phone record.</span>
+<span class="sd">	:return: Phone instance if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Phone</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">phone_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>
@@ -68,7 +83,14 @@
 <div class="viewcode-block" id="get_phone_by_number">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.get_phone_by_number">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_phone_by_number</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">phone_number</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Phone</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Повертає телефонний номер за його наявності."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return a phone record matching the specified phone number.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the phone number.</span>
+<span class="sd">	:param phone_number: Phone number to search for.</span>
+<span class="sd">	:return: Phone instance if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Phone</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="n">number</span><span class="o">=</span><span class="n">phone_number</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>
@@ -80,7 +102,14 @@
 <div class="viewcode-block" id="create_phone">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.create_phone">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_phone</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">phone_data</span><span class="p">:</span> <span class="n">PhoneCreateSchema</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Phone</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Створює новий телефонний номер."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Create and persist a new phone number.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the new phone number.</span>
+<span class="sd">	:param phone_data: Validated data used to create the phone record.</span>
+<span class="sd">	:return: Newly created phone record.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">new_phone</span> <span class="o">=</span> <span class="n">Phone</span><span class="p">(</span> <span class="o">**</span><span class="n">phone_data</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span> <span class="n">exclude_unset</span><span class="o">=</span><span class="kc">True</span> <span class="p">),</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span><span class="p">,</span> <span class="p">)</span>
 
@@ -94,7 +123,15 @@
 <div class="viewcode-block" id="update_phone">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.update_phone">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">update_phone</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">phone_data</span><span class="p">:</span> <span class="n">PhoneUpdateSchema</span><span class="p">,</span> <span class="n">phone_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Phone</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Оновлює телефонний номер за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Update an existing phone record.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the phone number.</span>
+<span class="sd">	:param phone_data: Validated phone update data.</span>
+<span class="sd">	:param phone_id: Identifier of the phone record to update.</span>
+<span class="sd">	:return: Updated phone record if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Phone</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">phone_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>
@@ -115,7 +152,14 @@
 <div class="viewcode-block" id="delete_phone">
 <a class="viewcode-back" href="../../../repository.html#src.repository.phones.delete_phone">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete_phone</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">phone_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Phone</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Видаляє телефонний номер за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Delete a phone record owned by the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the phone number.</span>
+<span class="sd">	:param phone_id: Identifier of the phone record to delete.</span>
+<span class="sd">	:return: Deleted phone record if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Phone</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">phone_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>

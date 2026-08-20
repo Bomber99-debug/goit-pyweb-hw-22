@@ -9,7 +9,17 @@ from src.entity.models import Contact, User
 
 
 async def search_contacts( db: AsyncSession, user: User, query: str, ) -> Sequence[ Contact ]:
-	"""Шукає контакти за ім'ям, прізвищем або електронною адресою."""
+	"""
+	Search contacts by first name, last name, or email address.
+
+	The search is case-insensitive and limited to contacts owned by
+	the specified user.
+
+	:param db: Asynchronous database session.
+	:param user: User whose contacts are searched.
+	:param query: Search string.
+	:return: Sequence of matching contacts.
+	"""
 
 	statement = (
 			select( Contact ).filter_by( user=user ).options( selectinload( Contact.phones ) ).where( or_(
@@ -22,7 +32,15 @@ async def search_contacts( db: AsyncSession, user: User, query: str, ) -> Sequen
 
 
 async def get_contacts_with_upcoming_birthdays( db: AsyncSession, user: User, ) -> Sequence[ Contact ]:
-	"""Повертає контакти, день народження яких припадає на найближчі дні."""
+	"""
+	Return contacts with birthdays occurring within the next seven days.
+
+	The current day is included in the search interval.
+
+	:param db: Asynchronous database session.
+	:param user: User whose contacts are checked.
+	:return: Sequence of contacts with upcoming birthdays.
+	"""
 
 	current_date = date.today()
 	upcoming_dates = [ current_date + timedelta( days=day_offset ) for day_offset in range( 8 ) ]

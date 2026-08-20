@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.routes.email &#8212; Contacts REST API  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.routes.email</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">BackgroundTasks</span><span class="p">,</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">Request</span><span class="p">,</span> <span class="n">Response</span><span class="p">,</span> <span class="n">status</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi.responses</span><span class="w"> </span><span class="kn">import</span> <span class="n">FileResponse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pyrate_limiter</span><span class="w"> </span><span class="kn">import</span> <span class="n">Duration</span><span class="p">,</span> <span class="n">Limiter</span><span class="p">,</span> <span class="n">Rate</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.ext.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.database.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.repository</span><span class="w"> </span><span class="kn">import</span> <span class="n">email</span> <span class="k">as</span> <span class="n">repository_email</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.schemas.email</span><span class="w"> </span><span class="kn">import</span> <span class="n">RequestEmail</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.services.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">auth_service</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.services.email</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_email</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.services.rate_limiter</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLimiter</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">(</span> <span class="n">prefix</span><span class="o">=</span><span class="s2">"/email"</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span> <span class="s2">"email"</span> <span class="p">]</span> <span class="p">)</span>
+
+
+<div class="viewcode-block" id="confirm_email">
+<a class="viewcode-back" href="../../../routes.html#src.routes.email.confirm_email">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span> <span class="s2">"/confirmed_email/</span><span class="si">{token}</span><span class="s2">"</span><span class="p">,</span>
+             <span class="n">dependencies</span><span class="o">=</span><span class="p">[</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">RateLimiter</span><span class="p">(</span> <span class="n">limiter</span><span class="o">=</span><span class="n">Limiter</span><span class="p">(</span> <span class="n">Rate</span><span class="p">(</span> <span class="mi">1</span><span class="p">,</span> <span class="n">Duration</span><span class="o">.</span><span class="n">SECOND</span> <span class="o">*</span> <span class="mi">5</span><span class="p">,</span> <span class="p">),</span> <span class="p">),</span> <span class="p">),</span> <span class="p">),</span> <span class="p">],</span> <span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">confirm_email</span><span class="p">(</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span> <span class="p">),</span> <span class="p">):</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Confirm a user's email address using a verification token.</span>
+
+<span class="sd">	:param token: Email verification token.</span>
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:return: Email confirmation status message.</span>
+<span class="sd">	:raises HTTPException: If the associated user cannot be found.</span>
+<span class="sd">	"""</span>
+	<span class="n">mail</span> <span class="o">=</span> <span class="k">await</span> <span class="n">auth_service</span><span class="o">.</span><span class="n">get_email_from_token</span><span class="p">(</span> <span class="n">token</span> <span class="p">)</span>
+	<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_email</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">mail</span><span class="p">,</span> <span class="n">db</span> <span class="p">)</span>
+	<span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_400_BAD_REQUEST</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"Verification error"</span> <span class="p">)</span>
+	<span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+		<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address already confirmed"</span> <span class="p">}</span>
+	<span class="k">await</span> <span class="n">repository_email</span><span class="o">.</span><span class="n">confirmed_email</span><span class="p">(</span> <span class="n">mail</span><span class="p">,</span> <span class="n">db</span> <span class="p">)</span>
+	<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address confirmed"</span> <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="request_verification_email">
+<a class="viewcode-back" href="../../../routes.html#src.routes.email.request_verification_email">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span> <span class="s2">"/request_email"</span> <span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">request_verification_email</span><span class="p">(</span> <span class="n">body</span><span class="p">:</span> <span class="n">RequestEmail</span><span class="p">,</span>
+                                      <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">,</span>
+                                      <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+                                      <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span> <span class="p">),</span> <span class="p">):</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Request a new email verification message.</span>
+
+<span class="sd">	:param body: Email address submitted for verification.</span>
+<span class="sd">	:param background_tasks: FastAPI background task manager.</span>
+<span class="sd">	:param request: Current HTTP request.</span>
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:return: Verification request status message.</span>
+<span class="sd">	:raises HTTPException: If the user cannot be found.</span>
+<span class="sd">	"""</span>
+	<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_email</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span> <span class="p">)</span>
+	<span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="p">:</span>
+		<span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+			<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address already confirmed"</span> <span class="p">}</span>
+		<span class="k">if</span> <span class="n">user</span><span class="p">:</span>
+			<span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span> <span class="n">send_email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span> <span class="n">request</span><span class="o">.</span><span class="n">base_url</span> <span class="p">)</span> <span class="p">)</span>
+		<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address confirmed"</span> <span class="p">}</span>
+	<span class="k">else</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"User not found"</span><span class="p">,</span> <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="track_email_open">
+<a class="viewcode-back" href="../../../routes.html#src.routes.email.track_email_open">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span> <span class="s1">'/</span><span class="si">{username}</span><span class="s1">'</span> <span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">track_email_open</span><span class="p">(</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">Response</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span> <span class="p">)</span> <span class="p">):</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return the tracking image used to record an email open event.</span>
+
+<span class="sd">	:param username: User name associated with the tracking request.</span>
+<span class="sd">	:param response: Current HTTP response.</span>
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:return: Tracking image response.</span>
+<span class="sd">	"""</span>
+	<span class="nb">print</span><span class="p">(</span> <span class="s1">'--------------------------------'</span> <span class="p">)</span>
+	<span class="nb">print</span><span class="p">(</span> <span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s1"> зберігаємо що він відкрив email в БД'</span> <span class="p">)</span>
+	<span class="nb">print</span><span class="p">(</span> <span class="s1">'--------------------------------'</span> <span class="p">)</span>
+	<span class="k">return</span> <span class="n">FileResponse</span><span class="p">(</span> <span class="s2">"src/static/open_check.png"</span><span class="p">,</span> <span class="n">media_type</span><span class="o">=</span><span class="s2">"image/png"</span><span class="p">,</span> <span class="n">content_disposition_type</span><span class="o">=</span><span class="s2">"inline"</span> <span class="p">)</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">Contacts REST API</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../repository.html">Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../routes.html">Routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../models.html">Database Models</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

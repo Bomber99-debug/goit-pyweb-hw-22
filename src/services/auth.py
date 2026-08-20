@@ -15,7 +15,9 @@ from src.repository import users as users_repository
 
 
 class Auth:
-	"""Надає методи аутентифікації, роботи з паролями та JWT-токенами."""
+	"""
+	Provide password hashing, JWT authentication, and user lookup services.
+	"""
 	pwd_context = CryptContext( schemes=[ "bcrypt" ], deprecated="auto" )
 	SECRET_KEY = config.SECRET_KEY_JWT
 	ALGORITHM = config.ALGORITHM
@@ -31,6 +33,12 @@ class Auth:
 		return self.pwd_context.verify( plain_password, hashed_password )
 
 	def get_password_hash( self, password: str ):
+		"""
+		Hash a plain-text password using the configured password context.
+
+		:param password: Plain-text password.
+		:return: Password hash suitable for persistent storage.
+		"""
 		return self.pwd_context.hash( password )
 
 	oauth2_scheme = OAuth2PasswordBearer( tokenUrl="auth/login" )
@@ -55,6 +63,13 @@ class Auth:
 
 	# define a function to generate a new refresh token
 	async def create_refresh_token( self, data: dict, expires_delta: Optional[ float ] = None, ):
+		"""
+		Create a signed JWT refresh token.
+
+		:param data: Payload to encode into the token.
+		:param expires_delta: Optional token lifetime in seconds.
+		:return: Encoded JWT refresh token.
+		"""
 		to_encode = data.copy()
 		if expires_delta:
 			expire = datetime.now( timezone.utc ) + timedelta( seconds=expires_delta )
@@ -65,6 +80,13 @@ class Auth:
 		return encoded_refresh_token
 
 	async def decode_refresh_token( self, refresh_token: str ):
+		"""
+		Decode and validate a JWT refresh token.
+
+		:param refresh_token: Encoded refresh token.
+		:return: Email address stored in the token subject.
+		:raises HTTPException: If the token is invalid or has an incorrect scope.
+		"""
 		try:
 			payload = jwt.decode( refresh_token, self.SECRET_KEY, algorithms=[ self.ALGORITHM ], )
 			if payload[ "scope" ] == "refresh_token":
@@ -75,6 +97,17 @@ class Auth:
 			raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials", )
 
 	async def get_current_user( self, token: str = Depends( oauth2_scheme ), db: AsyncSession = Depends( get_db ), ):
+		"""
+		Return the currently authenticated user from an access token.
+
+		The decoded user is loaded from Redis when available. On a cache miss,
+		the user is retrieved from the database and stored in Redis temporarily.
+
+		:param token: OAuth2 access token.
+		:param db: Asynchronous database session.
+		:return: Authenticated user.
+		:raises HTTPException: If the token or user cannot be validated.
+		"""
 		credentials_exception = HTTPException( status_code=status.HTTP_401_UNAUTHORIZED,
 		                                       detail="Could not validate credentials",
 		                                       headers={ "WWW-Authenticate": "Bearer" }, )
@@ -91,7 +124,7 @@ class Auth:
 		except JWTError as e:
 			raise credentials_exception
 
-		""" saving the user cache """
+		# Cache the authenticated user.
 		user_name_cache = f"{payload[ "scope" ]}:{email}"
 		user = await redis_client.get( user_name_cache )
 		if user is None:
@@ -106,6 +139,12 @@ class Auth:
 		return user
 
 	def create_email_token( self, data: dict ):
+		"""
+		Create a JWT token used for email verification.
+
+		:param data: Payload containing user identification data.
+		:return: Encoded email verification token.
+		"""
 		to_encode = data.copy()
 		expire = datetime.now( timezone.utc ) + timedelta( days=1 )
 		to_encode.update( { "iat": datetime.now( timezone.utc ), "exp": expire } )
@@ -113,6 +152,13 @@ class Auth:
 		return token
 
 	async def get_email_from_token( self, token: str ):
+		"""
+		Extract an email address from an email verification token.
+
+		:param token: Encoded email verification token.
+		:return: Email address stored in the token.
+		:raises HTTPException: If the token cannot be validated.
+		"""
 		try:
 			payload = jwt.decode( token, self.SECRET_KEY, algorithms=[ self.ALGORITHM ] )
 			email = payload[ "sub" ]

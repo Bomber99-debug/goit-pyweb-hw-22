@@ -115,7 +115,7 @@
 <span class="sd">	:param email: Email address of the user.</span>
 <span class="sd">	:param url: New avatar URL.</span>
 <span class="sd">	:param db: Asynchronous database session.</span>
-<span class="sd">	:return</span>
+<span class="sd">	:return: Updated user instance.</span>
 <span class="sd">	"""</span>
 	<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">email</span><span class="p">,</span> <span class="n">db</span> <span class="p">)</span>
 	<span class="n">user</span><span class="o">.</span><span class="n">avatar</span> <span class="o">=</span> <span class="n">url</span>

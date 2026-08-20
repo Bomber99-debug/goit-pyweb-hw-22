@@ -44,11 +44,21 @@
 <div class="viewcode-block" id="get_contacts">
 <a class="viewcode-back" href="../../../repository.html#src.repository.contacts.get_contacts">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_contacts</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">skip</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span> <span class="n">Contact</span> <span class="p">]:</span>
-<span class="w">	</span><span class="sd">"""Повертає список контактів з урахуванням пагінації."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return a paginated list of contacts owned by the specified user.</span>
+
+<span class="sd">	Phone relationships are loaded together with each contact.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the contacts.</span>
+<span class="sd">	:param skip: Number of contacts to skip.</span>
+<span class="sd">	:param limit: Maximum number of contacts to return.</span>
+<span class="sd">	:return: Sequence of contacts belonging to the user.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
 			<span class="n">select</span><span class="p">(</span> <span class="n">Contact</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span> <span class="n">selectinload</span><span class="p">(</span> <span class="n">Contact</span><span class="o">.</span><span class="n">phones</span> <span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span> <span class="n">skip</span> <span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span>
-				<span class="n">limit</span><span class="p">,</span> <span class="p">))</span>
+					<span class="n">limit</span><span class="p">,</span> <span class="p">))</span>
 
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>
 
@@ -59,7 +69,16 @@
 <div class="viewcode-block" id="get_contact_by_id">
 <a class="viewcode-back" href="../../../repository.html#src.repository.contacts.get_contact_by_id">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_contact_by_id</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Contact</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Повертає контакт за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return a contact by its identifier.</span>
+
+<span class="sd">	The contact is selected only if it belongs to the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the contact.</span>
+<span class="sd">	:param contact_id: Identifier of the contact.</span>
+<span class="sd">	:return: Contact instance if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="p">(</span><span class="n">select</span><span class="p">(</span> <span class="n">Contact</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span> <span class="n">selectinload</span><span class="p">(</span> <span class="n">Contact</span><span class="o">.</span><span class="n">phones</span> <span class="p">)</span> <span class="p">))</span>
 
@@ -72,7 +91,14 @@
 <div class="viewcode-block" id="create_contact">
 <a class="viewcode-back" href="../../../repository.html#src.repository.contacts.create_contact">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_contact</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">contact_data</span><span class="p">:</span> <span class="n">ContactCreateSchema</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Contact</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Створює контакт разом із переданими номерами телефонів."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Create and persist a new contact with its phone numbers.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the new contact.</span>
+<span class="sd">	:param contact_data: Validated data used to create the contact.</span>
+<span class="sd">	:return: Newly created contact.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">contact_fields</span> <span class="o">=</span> <span class="n">contact_data</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span> <span class="n">exclude</span><span class="o">=</span><span class="p">{</span> <span class="s2">"phones"</span> <span class="p">}</span> <span class="p">)</span>
 	<span class="n">phone_models</span> <span class="o">=</span> <span class="p">[</span> <span class="n">Phone</span><span class="p">(</span> <span class="o">**</span><span class="n">phone_data</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span> <span class="k">for</span> <span class="n">phone_data</span> <span class="ow">in</span> <span class="n">contact_data</span><span class="o">.</span><span class="n">phones</span> <span class="p">]</span>
@@ -92,7 +118,15 @@
                           <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span>
                           <span class="n">contact_data</span><span class="p">:</span> <span class="n">ContactUpdateSchema</span><span class="p">,</span>
                           <span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Contact</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Оновлює контакт за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Update an existing contact owned by the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the contact.</span>
+<span class="sd">	:param contact_data: Validated contact update data.</span>
+<span class="sd">	:param contact_id: Identifier of the contact to update.</span>
+<span class="sd">	:return: Updated contact if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Contact</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>
@@ -116,7 +150,14 @@
 <div class="viewcode-block" id="delete_contact">
 <a class="viewcode-back" href="../../../repository.html#src.repository.contacts.delete_contact">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">delete_contact</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">contact_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Contact</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">	</span><span class="sd">"""Видаляє контакт за його ідентифікатором."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Delete a contact owned by the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User who owns the contact.</span>
+<span class="sd">	:param contact_id: Identifier of the contact to delete.</span>
+<span class="sd">	:return: Deleted contact if found, otherwise None.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span> <span class="n">Contact</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="nb">id</span><span class="o">=</span><span class="n">contact_id</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span>
 	<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span> <span class="n">statement</span> <span class="p">)</span>

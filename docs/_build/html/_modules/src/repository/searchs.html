@@ -44,7 +44,17 @@
 <div class="viewcode-block" id="search_contacts">
 <a class="viewcode-back" href="../../../repository.html#src.repository.searchs.search_contacts">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">search_contacts</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span> <span class="n">Contact</span> <span class="p">]:</span>
-<span class="w">	</span><span class="sd">"""Шукає контакти за ім'ям, прізвищем або електронною адресою."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Search contacts by first name, last name, or email address.</span>
+
+<span class="sd">	The search is case-insensitive and limited to contacts owned by</span>
+<span class="sd">	the specified user.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User whose contacts are searched.</span>
+<span class="sd">	:param query: Search string.</span>
+<span class="sd">	:return: Sequence of matching contacts.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">statement</span> <span class="o">=</span> <span class="p">(</span>
 			<span class="n">select</span><span class="p">(</span> <span class="n">Contact</span> <span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span> <span class="n">user</span><span class="o">=</span><span class="n">user</span> <span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span> <span class="n">selectinload</span><span class="p">(</span> <span class="n">Contact</span><span class="o">.</span><span class="n">phones</span> <span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="n">where</span><span class="p">(</span> <span class="n">or_</span><span class="p">(</span>
@@ -60,7 +70,15 @@
 <div class="viewcode-block" id="get_contacts_with_upcoming_birthdays">
 <a class="viewcode-back" href="../../../repository.html#src.repository.searchs.get_contacts_with_upcoming_birthdays">[docs]</a>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_contacts_with_upcoming_birthdays</span><span class="p">(</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span><span class="p">,</span> <span class="n">user</span><span class="p">:</span> <span class="n">User</span><span class="p">,</span> <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Sequence</span><span class="p">[</span> <span class="n">Contact</span> <span class="p">]:</span>
-<span class="w">	</span><span class="sd">"""Повертає контакти, день народження яких припадає на найближчі дні."""</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Return contacts with birthdays occurring within the next seven days.</span>
+
+<span class="sd">	The current day is included in the search interval.</span>
+
+<span class="sd">	:param db: Asynchronous database session.</span>
+<span class="sd">	:param user: User whose contacts are checked.</span>
+<span class="sd">	:return: Sequence of contacts with upcoming birthdays.</span>
+<span class="sd">	"""</span>
 
 	<span class="n">current_date</span> <span class="o">=</span> <span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
 	<span class="n">upcoming_dates</span> <span class="o">=</span> <span class="p">[</span> <span class="n">current_date</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">days</span><span class="o">=</span><span class="n">day_offset</span> <span class="p">)</span> <span class="k">for</span> <span class="n">day_offset</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span> <span class="mi">8</span> <span class="p">)</span> <span class="p">]</span>

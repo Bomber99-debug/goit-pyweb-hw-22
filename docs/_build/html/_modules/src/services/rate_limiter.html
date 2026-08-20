@@ -38,8 +38,17 @@
 <div class="viewcode-block" id="RateLimiter">
 <a class="viewcode-back" href="../../../services.html#src.services.rate_limiter.RateLimiter">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">RateLimiter</span><span class="p">(</span> <span class="n">BaseRateLimiter</span> <span class="p">):</span>
+<span class="w">	</span><span class="sd">"""Provide request rate limiting for API endpoints."""</span>
 
 	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">Response</span><span class="p">,</span> <span class="p">):</span>
+
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Check whether the current request is allowed by the rate limiter.</span>
+
+<span class="sd">		:param request: Incoming HTTP request.</span>
+<span class="sd">		:param response: HTTP response associated with the request.</span>
+<span class="sd">		:return: Rate-limit callback result when the limit is exceeded, otherwise None.</span>
+<span class="sd">		"""</span>
 		<span class="n">rate_key</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifier</span><span class="p">(</span> <span class="n">request</span> <span class="p">)</span>
 		<span class="n">success</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">try_acquire_async</span><span class="p">(</span> <span class="n">rate_key</span><span class="p">,</span> <span class="n">blocking</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="p">)</span>
 		<span class="k">if</span> <span class="ow">not</span> <span class="n">success</span><span class="p">:</span>

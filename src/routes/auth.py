@@ -20,6 +20,19 @@ get_refresh_token = HTTPBearer()
 
 @router.post( "/signup", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED, )
 async def signup( body: UserCreateSchema, bt: BackgroundTasks, request: Request, db: AsyncSession = Depends( get_db ) ):
+	"""
+	Register a new user.
+
+	A verification email is scheduled and the user's password is hashed
+	before the account is persisted.
+
+	:param body: Validated user registration data.
+	:param bt: FastAPI background task manager.
+	:param request: Current HTTP request.
+	:param db: Asynchronous database session.
+	:return: Newly created user.
+	:raises HTTPException: If an account with the same email already exists.
+	"""
 	exist_user = await users_repository.get_user_by_email( email=body.email, db=db )
 	if exist_user:
 		raise HTTPException( status_code=status.HTTP_409_CONFLICT, detail="Account already exists", )
@@ -31,6 +44,14 @@ async def signup( body: UserCreateSchema, bt: BackgroundTasks, request: Request,
 
 @router.post( "/login", response_model=TokenShema )
 async def login( body: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends( get_db ) ):
+	"""
+	Authenticate a user and issue JWT access and refresh tokens.
+
+	:param body: OAuth2 login form containing email and password.
+	:param db: Asynchronous database session.
+	:return: Access token, refresh token, and token type.
+	:raises HTTPException: If the user, email confirmation, or password is invalid.
+	"""
 	user = await users_repository.get_user_by_email( email=body.username, db=db )
 	if user is None:
 		raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email", )
@@ -49,6 +70,14 @@ async def login( body: OAuth2PasswordRequestForm = Depends(), db: AsyncSession =
 @router.get( "/refresh_token" )
 async def refresh_token( credentials: HTTPAuthorizationCredentials = Security( get_refresh_token ),
                          db: AsyncSession = Depends( get_db ), ):
+	"""
+	Issue a new access and refresh token pair.
+
+	:param credentials: HTTP bearer credentials containing the refresh token.
+	:param db: Asynchronous database session.
+	:return: New access token, refresh token, and token type.
+	:raises HTTPException: If the refresh token is invalid.
+	"""
 	token = credentials.credentials
 	email = await auth_service.decode_refresh_token( token )
 	user = await users_repository.get_user_by_email( email=email, db=db )
@@ -67,6 +96,17 @@ async def refresh_token( credentials: HTTPAuthorizationCredentials = Security( g
 async def update_avatar_user( file: UploadFile = File(),
                               current_user: User = Depends( auth_service.get_current_user ),
                               db: AsyncSession = Depends( get_db ), ):
+	"""
+	Upload and update the authenticated user's avatar.
+
+	The image is uploaded to Cloudinary and the cached authenticated user
+	is invalidated after the avatar URL is updated.
+
+	:param file: Uploaded image file.
+	:param current_user: Currently authenticated user.
+	:param db: Asynchronous database session.
+	:return: Updated user.
+	"""
 	cloudinary.config( cloud_name=config.CLOUDINARY_CLOUD_NAME,
 	                   api_key=config.CLOUDINARY_API_KEY,
 	                   api_secret=config.CLOUDINARY_API_SECRET,

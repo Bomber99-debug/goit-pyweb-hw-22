@@ -14,6 +14,13 @@ from src.routes import auth, contacts, email, phones, searchs
 
 @asynccontextmanager
 async def lifespan( app: FastAPI ):
+	"""
+	Initialize application resources during FastAPI startup.
+
+	The function verifies the Redis connection and configures FastAPI cache.
+
+	:param app: FastAPI application instance.
+	"""
 	await redis_client.ping()
 	# Start event
 	FastAPICache.init( RedisBackend( redis_client ), prefix="fastapi-cache" )
@@ -39,14 +46,19 @@ app.include_router( searchs.router )
 
 @app.get( "/" )
 async def get_root() -> dict[ str, str ]:
-	"""Повертає повідомлення про доступність API."""
+	"""Return a message indicating that the Contacts API is available."""
 	return { "message": "Contacts API is running" }
 
 
 @app.get( "/contacts_healthchecker" )
-async def check_contacts_database_connection( db: AsyncSession = Depends( get_db ),  # noqa: B008
-                                              ) -> dict[ str, str ]:
-	"""Перевіряє доступність бази даних для маршрутів контактів."""
+async def check_contacts_database_connection( db: AsyncSession = Depends( get_db ) ) -> dict[ str, str ]:
+	"""
+	Check the database connection used by contact routes.
+
+	:param db: Asynchronous database session.
+	:return: Database health status message.
+	:raises HTTPException: If the database health check fails.
+	"""
 
 	try:
 		query_result = await db.execute( text( "SELECT 1" ) )
@@ -67,7 +79,13 @@ async def check_contacts_database_connection( db: AsyncSession = Depends( get_db
 
 @app.get( "/phone_healthchecker" )
 async def check_phones_database_connection( db: AsyncSession = Depends( get_db ), ) -> dict[ str, str ]:
-	"""Перевіряє доступність бази даних для маршрутів телефонів."""
+	"""
+	Check the database connection used by phone routes.
+
+	:param db: Asynchronous database session.
+	:return: Database health status message.
+	:raises HTTPException: If the database health check fails.
+	"""
 
 	try:
 		query_result = await db.execute( text( "SELECT 1" ) )
@@ -87,8 +105,14 @@ async def check_phones_database_connection( db: AsyncSession = Depends( get_db )
 
 
 @app.get( "/user_healthchecker" )
-async def check_phones_database_connection( db: AsyncSession = Depends( get_db ), ) -> dict[ str, str ]:
-	"""Перевіряє доступність бази даних для маршрутів користувачів."""
+async def check_users_database_connection( db: AsyncSession = Depends( get_db ), ) -> dict[ str, str ]:
+	"""
+	Check the database connection used by user routes.
+
+	:param db: Asynchronous database session.
+	:return: Database health status message.
+	:raises HTTPException: If the database health check fails.
+	"""
 
 	try:
 		query_result = await db.execute( text( "SELECT 1" ) )

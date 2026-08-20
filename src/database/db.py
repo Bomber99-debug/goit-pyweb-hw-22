@@ -9,7 +9,9 @@ from src.conf.config import config
 
 
 class DatabaseSessionManager:
-	"""Керує асинхронним підключенням і сесіями бази даних."""
+	"""
+	Manage the asynchronous database engine and SQLAlchemy sessions.
+	"""
 
 	def __init__( self, database_url: str ) -> None:
 		self._engine: AsyncEngine = create_async_engine( database_url )
@@ -18,7 +20,16 @@ class DatabaseSessionManager:
 
 	@contextlib.asynccontextmanager
 	async def session( self ) -> AsyncIterator[ AsyncSession ]:
-		"""Створює сесію та закриває її після завершення роботи."""
+		"""
+		Create and manage an asynchronous database session.
+
+		The session is automatically closed after use. Database integrity
+		and SQLAlchemy errors are converted to appropriate HTTP errors.
+
+		:return: Asynchronous database session.
+		:raises RuntimeError: If the session factory is not initialized.
+		:raises HTTPException: If a database integrity or SQLAlchemy error occurs.
+		"""
 
 		if self._session_factory is None:
 			raise RuntimeError( "Session factory is not initialized" )
@@ -45,7 +56,11 @@ session_manager = DatabaseSessionManager( config.DB_URL )
 
 
 async def get_db() -> AsyncIterator[ AsyncSession ]:
-	"""Надає сесію бази даних як залежність FastAPI."""
+	"""
+	Provide an asynchronous database session as a FastAPI dependency.
+
+	:return: Asynchronous SQLAlchemy session.
+	"""
 
 	async with session_manager.session() as database_session:
 		yield database_session

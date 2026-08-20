@@ -12,15 +12,15 @@ def custom_search_key_builder( func: Callable[ ..., Any ],
                                args: Tuple[ Any, ... ],
                                kwargs: Dict[ str, Any ], ) -> str:
 	"""
-	Створює ключ кешу для пошукових запитів поточного користувача.
+	Build a cache key for search requests of the current user.
 
-	:param func: Функція, результат якої кешується.
-	:param namespace: Простір імен кешу.
-	:param request: Поточний HTTP-запит.
-	:param response: Поточна HTTP-відповідь.
-	:param args: Позиційні аргументи функції.
-	:param kwargs: Іменовані аргументи функції.
-	:return: Унікальний ключ кешу для поточного користувача.
+	:param func: Function whose result is being cached.
+	:param namespace: Cache namespace.
+	:param request: Current HTTP request.
+	:param response: Current HTTP response.
+	:param args: Positional arguments passed to the cached function.
+	:param kwargs: Keyword arguments passed to the cached function.
+	:return: Cache key unique to the current user and cached function.
 	"""
 	current_user = kwargs.get( "current_user" )
 	return (f"{namespace}:"

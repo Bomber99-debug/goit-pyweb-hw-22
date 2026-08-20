@@ -5,13 +5,15 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base( DeclarativeBase ):
-	"""Базовий клас для всіх ORM-моделей."""
+	"""Base declarative class for all SQLAlchemy ORM models."""
 
 	...
 
 
 class Contact( Base ):
-	"""Модель контакту з особистими даними та номерами телефонів."""
+	"""
+	Represent a contact containing personal information and phone numbers.
+	"""
 
 	__tablename__ = "contacts"
 
@@ -32,7 +34,7 @@ class Contact( Base ):
 
 
 class Phone( Base ):
-	"""Модель номера телефону, що належить певному контакту."""
+	"""Represent a phone number associated with a contact."""
 
 	__tablename__ = "phones"
 
@@ -50,6 +52,7 @@ class Phone( Base ):
 
 
 class User( Base ):
+	"""Represent an application user and authentication-related data."""
 	__tablename__ = "users"
 	id: Mapped[ int ] = mapped_column( primary_key=True )
 	user_name: Mapped[ str ] = mapped_column( "user_name", String( 255 ) )

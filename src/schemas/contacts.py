@@ -6,7 +6,7 @@ from src.schemas.user import UserResponseSchema
 
 
 class PhoneBaseSchema( BaseModel ):
-	"""Базові дані телефонного номера."""
+	"""Represent common phone number fields."""
 
 	id: int
 	number: str = Field( min_length=9, max_length=13 )
@@ -14,37 +14,37 @@ class PhoneBaseSchema( BaseModel ):
 
 
 class PhoneCreateSchema( PhoneBaseSchema ):
-	"""Дані для створення окремого телефонного номера."""
+	"""Represent data required to create a phone record."""
 
 	...
 
 
 class PhoneUpdateSchema( PhoneBaseSchema ):
-	"""Дані для оновлення телефонного номера."""
+	"""Represent data required to update a phone record."""
 
 	...
 
 
 class PhoneResponseSchema( PhoneBaseSchema ):
-	"""Дані телефонного номера у відповіді API."""
+	"""Represent a phone record returned by the API."""
 
 	model_config = ConfigDict( from_attributes=True )
 
 	id: int
 	user: UserResponseSchema
-	# Перевизначає поле з PhoneBaseSchema без перевірки довжини.
-	# Це потрібно для старих номерів у базі, наприклад "string".
+	# Override the field inherited from PhoneBaseSchema.
+	# This keeps compatibility with phone numbers already stored in the database.
 	number: str = Field( min_length=9, max_length=13 )
 
 
 class ContactPhoneCreateSchema( BaseModel ):
-	"""Номер телефону під час створення контакту."""
+	"""Represent a phone number supplied when creating a contact."""
 
 	number: str = Field( min_length=9, max_length=13 )
 
 
 class ContactBaseSchema( BaseModel ):
-	"""Базові дані контакту."""
+	"""Represent common contact fields."""
 
 	id: int
 	first_name: str = Field( min_length=3, max_length=50 )
@@ -55,13 +55,13 @@ class ContactBaseSchema( BaseModel ):
 
 
 class ContactUpdateSchema( ContactBaseSchema ):
-	"""Дані для оновлення контакту."""
+	"""Represent data required to update a contact."""
 
 	...
 
 
 class ContactResponseSchema( BaseModel ):
-	"""Дані контакту у відповіді API."""
+	"""Represent a contact returned by the API."""
 
 	model_config = ConfigDict( from_attributes=True )
 
@@ -78,7 +78,7 @@ class ContactResponseSchema( BaseModel ):
 
 
 class ContactCreateSchema( BaseModel ):
-	"""Дані для створення контакту."""
+	"""Represent data required to create a contact."""
 
 	first_name: str = Field( min_length=3, max_length=50 )
 	last_name: str = Field( min_length=3, max_length=50 )

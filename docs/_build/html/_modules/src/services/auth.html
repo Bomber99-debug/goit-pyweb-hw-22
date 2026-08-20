@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>src.services.auth &#8212; Contacts REST API  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=5ecbeea2" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/basic.css?v=b08954a9" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=27fed22d" />
+    <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for src.services.auth</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">Depends</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">status</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fastapi.security</span><span class="w"> </span><span class="kn">import</span> <span class="n">OAuth2PasswordBearer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jose</span><span class="w"> </span><span class="kn">import</span> <span class="n">jwt</span><span class="p">,</span> <span class="n">JWTError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">passlib.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">CryptContext</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.ext.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.conf.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.database.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.database.redis</span><span class="w"> </span><span class="kn">import</span> <span class="n">redis_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">src.repository</span><span class="w"> </span><span class="kn">import</span> <span class="n">users</span> <span class="k">as</span> <span class="n">users_repository</span>
+
+
+<div class="viewcode-block" id="Auth">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Auth</span><span class="p">:</span>
+<span class="w">	</span><span class="sd">"""</span>
+<span class="sd">	Provide password hashing, JWT authentication, and user lookup services.</span>
+<span class="sd">	"""</span>
+	<span class="n">pwd_context</span> <span class="o">=</span> <span class="n">CryptContext</span><span class="p">(</span> <span class="n">schemes</span><span class="o">=</span><span class="p">[</span> <span class="s2">"bcrypt"</span> <span class="p">],</span> <span class="n">deprecated</span><span class="o">=</span><span class="s2">"auto"</span> <span class="p">)</span>
+	<span class="n">SECRET_KEY</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">SECRET_KEY_JWT</span>
+	<span class="n">ALGORITHM</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">ALGORITHM</span>
+
+<div class="viewcode-block" id="Auth.verify_password">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.verify_password">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">verify_password</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">plain_password</span><span class="p">,</span> <span class="n">hashed_password</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Verify a plain-text password against its stored hash.</span>
+
+<span class="sd">		:param plain_password: Password received from the user.</span>
+<span class="sd">		:param hashed_password: Stored password hash.</span>
+<span class="sd">		:return: True when the password matches the hash.</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd_context</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span> <span class="n">plain_password</span><span class="p">,</span> <span class="n">hashed_password</span> <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Auth.get_password_hash">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.get_password_hash">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">get_password_hash</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Hash a plain-text password using the configured password context.</span>
+
+<span class="sd">		:param password: Plain-text password.</span>
+<span class="sd">		:return: Password hash suitable for persistent storage.</span>
+<span class="sd">		"""</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pwd_context</span><span class="o">.</span><span class="n">hash</span><span class="p">(</span> <span class="n">password</span> <span class="p">)</span></div>
+
+
+	<span class="n">oauth2_scheme</span> <span class="o">=</span> <span class="n">OAuth2PasswordBearer</span><span class="p">(</span> <span class="n">tokenUrl</span><span class="o">=</span><span class="s2">"auth/login"</span> <span class="p">)</span>
+
+	<span class="c1"># define a function to generate a new access token</span>
+<div class="viewcode-block" id="Auth.create_access_token">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.create_access_token">[docs]</a>
+	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_access_token</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">expires_delta</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span> <span class="nb">float</span> <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Create a signed JWT access token.</span>
+
+<span class="sd">		:param data: Payload to encode into the token.</span>
+<span class="sd">		:param expires_delta: Optional token lifetime in seconds.</span>
+<span class="sd">		:return: Encoded JWT access token.</span>
+<span class="sd">		"""</span>
+		<span class="n">to_encode</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">expires_delta</span><span class="p">:</span>
+			<span class="n">expire</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">seconds</span><span class="o">=</span><span class="n">expires_delta</span> <span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">expire</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">minutes</span><span class="o">=</span><span class="mi">15</span> <span class="p">)</span>
+		<span class="n">to_encode</span><span class="o">.</span><span class="n">update</span><span class="p">(</span> <span class="p">{</span> <span class="s2">"iat"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">),</span> <span class="s2">"exp"</span><span class="p">:</span> <span class="n">expire</span><span class="p">,</span> <span class="s2">"scope"</span><span class="p">:</span> <span class="s2">"access_token"</span> <span class="p">},</span> <span class="p">)</span>
+		<span class="n">encoded_access_token</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="n">to_encode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span><span class="p">,</span> <span class="p">)</span>
+		<span class="k">return</span> <span class="n">encoded_access_token</span></div>
+
+
+	<span class="c1"># define a function to generate a new refresh token</span>
+<div class="viewcode-block" id="Auth.create_refresh_token">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.create_refresh_token">[docs]</a>
+	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">create_refresh_token</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">expires_delta</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span> <span class="nb">float</span> <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Create a signed JWT refresh token.</span>
+
+<span class="sd">		:param data: Payload to encode into the token.</span>
+<span class="sd">		:param expires_delta: Optional token lifetime in seconds.</span>
+<span class="sd">		:return: Encoded JWT refresh token.</span>
+<span class="sd">		"""</span>
+		<span class="n">to_encode</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="k">if</span> <span class="n">expires_delta</span><span class="p">:</span>
+			<span class="n">expire</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">seconds</span><span class="o">=</span><span class="n">expires_delta</span> <span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">expire</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">days</span><span class="o">=</span><span class="mi">7</span> <span class="p">)</span>
+		<span class="n">to_encode</span><span class="o">.</span><span class="n">update</span><span class="p">(</span> <span class="p">{</span> <span class="s2">"iat"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">),</span> <span class="s2">"exp"</span><span class="p">:</span> <span class="n">expire</span><span class="p">,</span> <span class="s2">"scope"</span><span class="p">:</span> <span class="s2">"refresh_token"</span> <span class="p">},</span> <span class="p">)</span>
+		<span class="n">encoded_refresh_token</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="n">to_encode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span><span class="p">,</span> <span class="p">)</span>
+		<span class="k">return</span> <span class="n">encoded_refresh_token</span></div>
+
+
+<div class="viewcode-block" id="Auth.decode_refresh_token">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.decode_refresh_token">[docs]</a>
+	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">decode_refresh_token</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">:</span> <span class="nb">str</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Decode and validate a JWT refresh token.</span>
+
+<span class="sd">		:param refresh_token: Encoded refresh token.</span>
+<span class="sd">		:return: Email address stored in the token subject.</span>
+<span class="sd">		:raises HTTPException: If the token is invalid or has an incorrect scope.</span>
+<span class="sd">		"""</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">payload</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span> <span class="n">refresh_token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithms</span><span class="o">=</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span> <span class="p">],</span> <span class="p">)</span>
+			<span class="k">if</span> <span class="n">payload</span><span class="p">[</span> <span class="s2">"scope"</span> <span class="p">]</span> <span class="o">==</span> <span class="s2">"refresh_token"</span><span class="p">:</span>
+				<span class="n">email</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span> <span class="s2">"sub"</span> <span class="p">]</span>
+				<span class="k">return</span> <span class="n">email</span>
+			<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"Invalid scope for token"</span><span class="p">,</span> <span class="p">)</span>
+		<span class="k">except</span> <span class="n">JWTError</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"Could not validate credentials"</span><span class="p">,</span> <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Auth.get_current_user">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.get_current_user">[docs]</a>
+	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_current_user</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">oauth2_scheme</span> <span class="p">),</span> <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span> <span class="p">),</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Return the currently authenticated user from an access token.</span>
+
+<span class="sd">		The decoded user is loaded from Redis when available. On a cache miss,</span>
+<span class="sd">		the user is retrieved from the database and stored in Redis temporarily.</span>
+
+<span class="sd">		:param token: OAuth2 access token.</span>
+<span class="sd">		:param db: Asynchronous database session.</span>
+<span class="sd">		:return: Authenticated user.</span>
+<span class="sd">		:raises HTTPException: If the token or user cannot be validated.</span>
+<span class="sd">		"""</span>
+		<span class="n">credentials_exception</span> <span class="o">=</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_401_UNAUTHORIZED</span><span class="p">,</span>
+		                                       <span class="n">detail</span><span class="o">=</span><span class="s2">"Could not validate credentials"</span><span class="p">,</span>
+		                                       <span class="n">headers</span><span class="o">=</span><span class="p">{</span> <span class="s2">"WWW-Authenticate"</span><span class="p">:</span> <span class="s2">"Bearer"</span> <span class="p">},</span> <span class="p">)</span>
+
+		<span class="k">try</span><span class="p">:</span>
+			<span class="c1"># Decode JWT</span>
+			<span class="n">payload</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span> <span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithms</span><span class="o">=</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span> <span class="p">]</span> <span class="p">)</span>
+			<span class="k">if</span> <span class="n">payload</span><span class="p">[</span> <span class="s2">"scope"</span> <span class="p">]</span> <span class="o">==</span> <span class="s2">"access_token"</span><span class="p">:</span>
+				<span class="n">email</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span> <span class="s2">"sub"</span> <span class="p">]</span>
+				<span class="k">if</span> <span class="n">email</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+					<span class="k">raise</span> <span class="n">credentials_exception</span>
+			<span class="k">else</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="n">credentials_exception</span>
+		<span class="k">except</span> <span class="n">JWTError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+			<span class="k">raise</span> <span class="n">credentials_exception</span>
+
+		<span class="c1"># Cache the authenticated user.</span>
+		<span class="n">user_name_cache</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">payload</span><span class="p">[</span><span class="w"> </span><span class="s2">"scope"</span><span class="w"> </span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">email</span><span class="si">}</span><span class="s2">"</span>
+		<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">get</span><span class="p">(</span> <span class="n">user_name_cache</span> <span class="p">)</span>
+		<span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+			<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">users_repository</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="o">=</span><span class="n">db</span> <span class="p">)</span>
+			<span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+				<span class="k">raise</span> <span class="n">credentials_exception</span>
+			<span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">set</span><span class="p">(</span> <span class="n">user_name_cache</span><span class="p">,</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span> <span class="n">user</span> <span class="p">)</span> <span class="p">)</span>
+			<span class="k">await</span> <span class="n">redis_client</span><span class="o">.</span><span class="n">expire</span><span class="p">(</span> <span class="n">name</span><span class="o">=</span><span class="n">user_name_cache</span><span class="p">,</span> <span class="n">time</span><span class="o">=</span><span class="mi">900</span> <span class="p">)</span>
+		<span class="k">else</span><span class="p">:</span>
+			<span class="n">user</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span> <span class="n">user</span> <span class="p">)</span>
+
+		<span class="k">return</span> <span class="n">user</span></div>
+
+
+<div class="viewcode-block" id="Auth.create_email_token">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.create_email_token">[docs]</a>
+	<span class="k">def</span><span class="w"> </span><span class="nf">create_email_token</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Create a JWT token used for email verification.</span>
+
+<span class="sd">		:param data: Payload containing user identification data.</span>
+<span class="sd">		:return: Encoded email verification token.</span>
+<span class="sd">		"""</span>
+		<span class="n">to_encode</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+		<span class="n">expire</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">)</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span> <span class="n">days</span><span class="o">=</span><span class="mi">1</span> <span class="p">)</span>
+		<span class="n">to_encode</span><span class="o">.</span><span class="n">update</span><span class="p">(</span> <span class="p">{</span> <span class="s2">"iat"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span> <span class="n">timezone</span><span class="o">.</span><span class="n">utc</span> <span class="p">),</span> <span class="s2">"exp"</span><span class="p">:</span> <span class="n">expire</span> <span class="p">}</span> <span class="p">)</span>
+		<span class="n">token</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span> <span class="n">to_encode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithm</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span> <span class="p">)</span>
+		<span class="k">return</span> <span class="n">token</span></div>
+
+
+<div class="viewcode-block" id="Auth.get_email_from_token">
+<a class="viewcode-back" href="../../../services.html#src.services.auth.Auth.get_email_from_token">[docs]</a>
+	<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_email_from_token</span><span class="p">(</span> <span class="bp">self</span><span class="p">,</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span> <span class="p">):</span>
+<span class="w">		</span><span class="sd">"""</span>
+<span class="sd">		Extract an email address from an email verification token.</span>
+
+<span class="sd">		:param token: Encoded email verification token.</span>
+<span class="sd">		:return: Email address stored in the token.</span>
+<span class="sd">		:raises HTTPException: If the token cannot be validated.</span>
+<span class="sd">		"""</span>
+		<span class="k">try</span><span class="p">:</span>
+			<span class="n">payload</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span> <span class="n">token</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">SECRET_KEY</span><span class="p">,</span> <span class="n">algorithms</span><span class="o">=</span><span class="p">[</span> <span class="bp">self</span><span class="o">.</span><span class="n">ALGORITHM</span> <span class="p">]</span> <span class="p">)</span>
+			<span class="n">email</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span> <span class="s2">"sub"</span> <span class="p">]</span>
+			<span class="k">return</span> <span class="n">email</span>
+		<span class="k">except</span> <span class="n">JWTError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+			<span class="nb">print</span><span class="p">(</span> <span class="n">e</span> <span class="p">)</span>
+			<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_422_UNPROCESSABLE_ENTITY</span><span class="p">,</span>
+			                     <span class="n">detail</span><span class="o">=</span><span class="s2">"Invalid token for email verification"</span><span class="p">,</span> <span class="p">)</span></div>
+</div>
+
+
+
+<span class="n">auth_service</span> <span class="o">=</span> <span class="n">Auth</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">Contacts REST API</a></h1>
+
+
+
+
+
+
+
+
+
+<search id="searchbox" style="display: none" role="search">
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script><h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../repository.html">Repository</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../services.html">Services</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../routes.html">Routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../models.html">Database Models</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 9.1.0</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 1.0.0</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

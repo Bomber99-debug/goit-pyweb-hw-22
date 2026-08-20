@@ -17,11 +17,15 @@ mail_config = ConnectionConfig( MAIL_USERNAME=config.MAIL_USER,
 
 async def send_email( email: EmailStr, username: str, host: str ):
 	"""
-	Надсилає користувачу лист для підтвердження електронної адреси.
+	Send an email verification message to a user.
 
-	:param email: Електронна адреса користувача.
-	:param username: Ім'я користувача.
-	:param host: Базова URL-адреса застосунку.
+	A temporary JWT verification token is generated and included
+	in the verification email template.
+
+	:param email: Recipient email address.
+	:param username: Recipient user name.
+	:param host: Base URL of the application.
+	:return: None.
 	"""
 	try:
 		token_verification = auth_service.create_email_token( { "sub": email } )
@@ -42,14 +46,15 @@ async def send_email_add_contact( email_user: str,
                                   last_name: str,
                                   phones: list, ):
 	"""
-	Надсилає користувачу повідомлення про створення нового контакту.
+	Send a notification email after a new contact is created.
 
-	:param email_user: Електронна адреса власника контактів.
-	:param user_name: Ім'я користувача.
-	:param email_contact: Електронна адреса нового контакту.
-	:param first_name: Ім'я нового контакту.
-	:param last_name: Прізвище нового контакту.
-	:param phones: Список телефонних номерів контакту.
+	:param email_user: Email address of the contact owner.
+	:param user_name: Name of the contact owner.
+	:param email_contact: Email address of the newly created contact.
+	:param first_name: First name of the new contact.
+	:param last_name: Last name of the new contact.
+	:param phones: Phone numbers associated with the new contact.
+	:return: None.
 	"""
 	username = f'{first_name} {last_name}'
 	try:

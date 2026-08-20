@@ -8,7 +8,15 @@ from src.schemas.contacts import PhoneCreateSchema, PhoneUpdateSchema
 
 
 async def get_phones( db: AsyncSession, user: User, skip: int = 0, limit: int = 100, ) -> Sequence[ Phone ]:
-	"""Повертає список телефонних номерів з урахуванням пагінації."""
+	"""
+	Return a paginated list of phone numbers owned by the specified user.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the phone numbers.
+	:param skip: Number of records to skip.
+	:param limit: Maximum number of records to return.
+	:return: Sequence of phone numbers belonging to the user.
+	"""
 
 	statement = select( Phone ).filter_by( user=user ).offset( skip ).limit( limit )
 
@@ -18,7 +26,14 @@ async def get_phones( db: AsyncSession, user: User, skip: int = 0, limit: int = 
 
 
 async def get_phone_by_id( db: AsyncSession, user: User, phone_id: int, ) -> Phone | None:
-	"""Повертає телефонний номер за його ідентифікатором."""
+	"""
+	Return a phone number by its identifier.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the phone number.
+	:param phone_id: Identifier of the phone record.
+	:return: Phone instance if found, otherwise None.
+	"""
 
 	statement = select( Phone ).filter_by( id=phone_id, user=user )
 	result = await db.execute( statement )
@@ -27,7 +42,14 @@ async def get_phone_by_id( db: AsyncSession, user: User, phone_id: int, ) -> Pho
 
 
 async def get_phone_by_number( db: AsyncSession, user: User, phone_number: str, ) -> Phone | None:
-	"""Повертає телефонний номер за його наявності."""
+	"""
+	Return a phone record matching the specified phone number.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the phone number.
+	:param phone_number: Phone number to search for.
+	:return: Phone instance if found, otherwise None.
+	"""
 
 	statement = select( Phone ).filter_by( number=phone_number, user=user )
 	result = await db.execute( statement )
@@ -36,7 +58,14 @@ async def get_phone_by_number( db: AsyncSession, user: User, phone_number: str, 
 
 
 async def create_phone( db: AsyncSession, user: User, phone_data: PhoneCreateSchema, ) -> Phone:
-	"""Створює новий телефонний номер."""
+	"""
+	Create and persist a new phone number.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the new phone number.
+	:param phone_data: Validated data used to create the phone record.
+	:return: Newly created phone record.
+	"""
 
 	new_phone = Phone( **phone_data.model_dump( exclude_unset=True ), user=user, )
 
@@ -47,7 +76,15 @@ async def create_phone( db: AsyncSession, user: User, phone_data: PhoneCreateSch
 
 
 async def update_phone( db: AsyncSession, user: User, phone_data: PhoneUpdateSchema, phone_id: int, ) -> Phone | None:
-	"""Оновлює телефонний номер за його ідентифікатором."""
+	"""
+	Update an existing phone record.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the phone number.
+	:param phone_data: Validated phone update data.
+	:param phone_id: Identifier of the phone record to update.
+	:return: Updated phone record if found, otherwise None.
+	"""
 
 	statement = select( Phone ).filter_by( id=phone_id, user=user )
 	result = await db.execute( statement )
@@ -65,7 +102,14 @@ async def update_phone( db: AsyncSession, user: User, phone_data: PhoneUpdateSch
 
 
 async def delete_phone( db: AsyncSession, user: User, phone_id: int, ) -> Phone | None:
-	"""Видаляє телефонний номер за його ідентифікатором."""
+	"""
+	Delete a phone record owned by the specified user.
+
+	:param db: Asynchronous database session.
+	:param user: User who owns the phone number.
+	:param phone_id: Identifier of the phone record to delete.
+	:return: Deleted phone record if found, otherwise None.
+	"""
 
 	statement = select( Phone ).filter_by( id=phone_id, user=user )
 	result = await db.execute( statement )

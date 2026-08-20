@@ -23,7 +23,18 @@ async def get_phones( limit: int = Query( default=10, ge=10, le=100 ),
                       offset: int = Query( default=0, ge=0 ),
                       db: AsyncSession = Depends( get_db ),
                       current_user: User = Depends( auth_service.get_current_user ), ) -> Sequence[ Phone ]:
-	"""Повертає список телефонних номерів з урахуванням пагінації."""
+	"""
+	Return a paginated list of phone numbers for the authenticated user.
+
+	Results may be loaded from or stored in Redis cache.
+
+	:param limit: Maximum number of phone records to return.
+	:param offset: Number of phone records to skip.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Sequence of phone records.
+	:raises HTTPException: If phone records cannot be found.
+	"""
 	phone_list_cache = f"current_user:{current_user.id}:phones:limit:{limit}:offset:{offset}"
 	phone_list = await redis_client.get( phone_list_cache )
 	if phone_list is None:
@@ -44,7 +55,15 @@ async def get_phones( limit: int = Query( default=10, ge=10, le=100 ),
 async def get_phone_by_id( db: AsyncSession = Depends( get_db ),
                            phone_id: int = Path( ge=1 ),
                            current_user: User = Depends( auth_service.get_current_user ), ) -> Phone:
-	"""Повертає телефонний номер за його ідентифікатором."""
+	"""
+	Return a phone record by identifier.
+
+	:param db: Asynchronous database session.
+	:param phone_id: Identifier of the requested phone record.
+	:param current_user: Currently authenticated user.
+	:return: Requested phone record.
+	:raises HTTPException: If the phone record does not exist.
+	"""
 
 	phone_id_cache = f"current_user:{current_user.id}:phone_id:{phone_id}"
 	phone = await redis_client.get( phone_id_cache )
@@ -67,7 +86,17 @@ async def get_phone_by_id( db: AsyncSession = Depends( get_db ),
 async def create_phone( phone_data: PhoneCreateSchema,
                         db: AsyncSession = Depends( get_db ),
                         current_user: User = Depends( auth_service.get_current_user ), ) -> Phone:
-	"""Створює новий телефонний номер."""
+	"""
+	Create a new phone record for the authenticated user.
+
+	Relevant Redis cache entries are invalidated after creation.
+
+	:param phone_data: Validated phone creation data.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Newly created phone record.
+	:raises HTTPException: If the phone number already exists.
+	"""
 
 	phone = await phones_repository.get_phone_by_number( db=db, phone_number=phone_data.number, user=current_user, )
 	if phone is not None:
@@ -89,7 +118,16 @@ async def update_phone( phone_data: PhoneUpdateSchema,
                         phone_id: int = Path( ge=1 ),
                         db: AsyncSession = Depends( get_db ),
                         current_user: User = Depends( auth_service.get_current_user ), ) -> Phone:
-	"""Оновлює телефонний номер за його ідентифікатором."""
+	"""
+	Update an existing phone record.
+
+	:param phone_data: Validated phone update data.
+	:param phone_id: Identifier of the phone record to update.
+	:param db: Asynchronous database session.
+	:param current_user: Currently authenticated user.
+	:return: Updated phone record.
+	:raises HTTPException: If the phone number already exists or the record is not found.
+	"""
 
 	phone = await phones_repository.get_phone_by_number( db=db, phone_number=phone_data.number, user=current_user, )
 	if phone is not None:
@@ -115,7 +153,14 @@ async def update_phone( phone_data: PhoneUpdateSchema,
 async def delete_phone( db: AsyncSession = Depends( get_db ),
                         phone_id: int = Path( ge=1 ),
                         current_user: User = Depends( auth_service.get_current_user ), ) -> None:
-	"""Видаляє телефонний номер за його ідентифікатором."""
+	"""
+	Delete a phone record belonging to the authenticated user.
+
+	:param db: Asynchronous database session.
+	:param phone_id: Identifier of the phone record to delete.
+	:param current_user: Currently authenticated user.
+	:return: None.
+	"""
 	await phones_repository.delete_phone( db=db, phone_id=phone_id, user=current_user )
 
 	await redis_client.delete( f"current_user:{current_user.id}:phone_id:{phone_id}" )
