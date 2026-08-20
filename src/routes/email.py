@@ -50,7 +50,7 @@ async def request_verification_email( body: RequestEmail,
 	:raises HTTPException: If the user cannot be found.
 	"""
 	user = await repository_email.get_user_by_email( body.email, db )
-	if not user:
+	if user is not None:
 		if user.confirmed:
 			return { "message": "Email address already confirmed" }
 		if user:

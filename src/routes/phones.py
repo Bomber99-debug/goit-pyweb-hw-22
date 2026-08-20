@@ -104,9 +104,10 @@ async def create_phone( phone_data: PhoneCreateSchema,
 
 	phone = await phones_repository.create_phone( db=db, phone_data=phone_data, user=current_user, )
 
-	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*" ]
-	async for key in redis_client.scan_iter( match=patterns, ):
-		await redis_client.delete( key, )
+	patterns = [ f"current_user:{current_user.id}:phones:*", f"current_user:{current_user.id}:contacts:*",]
+	for pattern in patterns:
+		async for key in redis_client.scan_iter( match=pattern, ):
+			await redis_client.delete( key, )
 
 	return phone
 
