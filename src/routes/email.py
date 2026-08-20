@@ -34,11 +34,11 @@ async def confirm_email( token: str, db: AsyncSession = Depends( get_db ), ):
 	return { "message": "Email address confirmed" }
 
 
-@router.post( "/request_email" )
+@router.post( "/request_email", )
 async def request_verification_email( body: RequestEmail,
-                                      background_tasks: BackgroundTasks,
-                                      request: Request,
-                                      db: AsyncSession = Depends( get_db ), ):
+		background_tasks: BackgroundTasks,
+		request: Request,
+		db: AsyncSession = Depends( get_db, ), ):
 	"""
 	Request a new email verification message.
 
@@ -50,12 +50,16 @@ async def request_verification_email( body: RequestEmail,
 	:raises HTTPException: If the user cannot be found.
 	"""
 	user = await repository_email.get_user_by_email( body.email, db, )
+
 	if user is None:
 		raise HTTPException( status_code=status.HTTP_404_NOT_FOUND, detail="User not found", )
+
 	if user.confirmed:
-		return { "message": "Verification email sent", }
-	background_tasks.add_task( send_email, user.email, user.user_name, str( request.base_url ), )
-	return { "message": "Verification email sent" }
+		return { "message": "Email address already confirmed",}
+
+	background_tasks.add_task( send_email, user.email, user.user_name, str( request.base_url, ), )
+
+	return { "message": "Verification email sent",}
 
 
 @router.get( '/{username}' )

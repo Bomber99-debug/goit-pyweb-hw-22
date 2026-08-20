@@ -223,8 +223,8 @@
 			<span class="k">return</span> <span class="n">email</span>
 		<span class="k">except</span> <span class="n">JWTError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
 			<span class="nb">print</span><span class="p">(</span> <span class="n">e</span> <span class="p">)</span>
-			<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_422_UNPROCESSABLE_ENTITY</span><span class="p">,</span>
-			                     <span class="n">detail</span><span class="o">=</span><span class="s2">"Invalid token for email verification"</span><span class="p">,</span> <span class="p">)</span></div>
+			<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_422_UNPROCESSABLE_CONTENT</span><span class="p">,</span>
+					<span class="n">detail</span><span class="o">=</span><span class="s2">"Invalid token for email verification"</span><span class="p">,</span> <span class="p">)</span></div>
 </div>
 
 

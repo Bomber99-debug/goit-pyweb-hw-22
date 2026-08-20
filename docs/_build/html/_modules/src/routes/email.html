@@ -72,11 +72,11 @@
 
 <div class="viewcode-block" id="request_verification_email">
 <a class="viewcode-back" href="../../../routes.html#src.routes.email.request_verification_email">[docs]</a>
-<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span> <span class="s2">"/request_email"</span> <span class="p">)</span>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span> <span class="s2">"/request_email"</span><span class="p">,</span> <span class="p">)</span>
 <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">request_verification_email</span><span class="p">(</span> <span class="n">body</span><span class="p">:</span> <span class="n">RequestEmail</span><span class="p">,</span>
-                                      <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">,</span>
-                                      <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
-                                      <span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span> <span class="p">),</span> <span class="p">):</span>
+		<span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">,</span>
+		<span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+		<span class="n">db</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span> <span class="n">get_db</span><span class="p">,</span> <span class="p">),</span> <span class="p">):</span>
 <span class="w">	</span><span class="sd">"""</span>
 <span class="sd">	Request a new email verification message.</span>
 
@@ -87,15 +87,17 @@
 <span class="sd">	:return: Verification request status message.</span>
 <span class="sd">	:raises HTTPException: If the user cannot be found.</span>
 <span class="sd">	"""</span>
-	<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_email</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span> <span class="p">)</span>
-	<span class="k">if</span> <span class="ow">not</span> <span class="n">user</span><span class="p">:</span>
-		<span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
-			<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address already confirmed"</span> <span class="p">}</span>
-		<span class="k">if</span> <span class="n">user</span><span class="p">:</span>
-			<span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span> <span class="n">send_email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span> <span class="n">request</span><span class="o">.</span><span class="n">base_url</span> <span class="p">)</span> <span class="p">)</span>
-		<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address confirmed"</span> <span class="p">}</span>
-	<span class="k">else</span><span class="p">:</span>
-		<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"User not found"</span><span class="p">,</span> <span class="p">)</span></div>
+	<span class="n">user</span> <span class="o">=</span> <span class="k">await</span> <span class="n">repository_email</span><span class="o">.</span><span class="n">get_user_by_email</span><span class="p">(</span> <span class="n">body</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">db</span><span class="p">,</span> <span class="p">)</span>
+
+	<span class="k">if</span> <span class="n">user</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+		<span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span> <span class="n">status_code</span><span class="o">=</span><span class="n">status</span><span class="o">.</span><span class="n">HTTP_404_NOT_FOUND</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">"User not found"</span><span class="p">,</span> <span class="p">)</span>
+
+	<span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">confirmed</span><span class="p">:</span>
+		<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Email address already confirmed"</span><span class="p">,}</span>
+
+	<span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span> <span class="n">send_email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">email</span><span class="p">,</span> <span class="n">user</span><span class="o">.</span><span class="n">user_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span> <span class="n">request</span><span class="o">.</span><span class="n">base_url</span><span class="p">,</span> <span class="p">),</span> <span class="p">)</span>
+
+	<span class="k">return</span> <span class="p">{</span> <span class="s2">"message"</span><span class="p">:</span> <span class="s2">"Verification email sent"</span><span class="p">,}</span></div>
 
 
 

@@ -1,4 +1,5 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import (BaseModel, ConfigDict, EmailStr, Field,
+	)
 
 
 class UserBaseSchema( BaseModel ):
@@ -11,13 +12,13 @@ class UserBaseSchema( BaseModel ):
 
 class UserResponseSchema( BaseModel ):
 	"""Represent user data returned by the API."""
+
 	id: int
-	user_name: str = Field( min_length=3, max_length=255 )
+	user_name: str = Field( min_length=3, max_length=255, )
 	email: EmailStr
 	avatar: str | None
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict( from_attributes=True, )
 
 
 class UserCreateSchema( BaseModel ):

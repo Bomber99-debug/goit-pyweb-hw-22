@@ -70,11 +70,14 @@ async def check_contacts_database_connection( db: AsyncSession = Depends( get_db
 
 		return { "message": "Contacts database connection is healthy",
 		         }
+	except HTTPException:
+		raise
+
 	except Exception as error:
-		print( error )
+		print( error, )
 
 		raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-		                     detail="Unable to connect to the database", )
+				detail="Unable to connect to the database", )
 
 
 @app.get( "/phone_healthchecker" )
@@ -92,13 +95,15 @@ async def check_phones_database_connection( db: AsyncSession = Depends( get_db )
 		database_response = query_result.fetchone()
 
 		if database_response is None:
-			raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-			                     detail="Database health check returned no result", )
+			raise HTTPException( status_code=500, detail="Database health check returned no result", )
 
 		return { "message": "Phones database connection is healthy",
 		         }
+	except HTTPException:
+		raise
+
 	except Exception as error:
-		print( error )
+		print( error, )
 
 		raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 		                     detail="Unable to connect to the database", )
@@ -124,8 +129,11 @@ async def check_users_database_connection( db: AsyncSession = Depends( get_db ),
 
 		return { "message": "User database connection is healthy",
 		         }
+	except HTTPException:
+		raise
+
 	except Exception as error:
-		print( error )
+		print( error, )
 
 		raise HTTPException( status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 		                     detail="Unable to connect to the database", )
